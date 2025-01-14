@@ -1,24 +1,18 @@
-FROM python:3.10-slim
+# Bazowy obraz TensorFlow
+FROM tensorflow/tensorflow
 
-
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-
-
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    libssl-dev \
-    libffi-dev \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-
+# Ustawienie katalogu roboczego
 WORKDIR /app
 
+# Skopiowanie pliku requirements.txt
+COPY requirements.txt .
 
-COPY requirements.txt /app/requirements.txt
+# Instalacja zależności
+RUN pip install --no-cache-dir -r requirements.txt && \
+    rm -rf /root/.cache/pip
 
+# Skopiowanie pozostałych plików aplikacji
+COPY . .
 
-RUN pip install --no-cache-dir -r requirements.txt
-
-
+# Domyślne polecenie kontenera
+CMD ["sleep", "infinity"]

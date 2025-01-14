@@ -1,4 +1,10 @@
-neptune-client
-tensorflow
+torch
+torchvision
 optuna
 medmnist
+numpy
+pandas
+scikit-learn
+matplotlib
+seaborn
+notebook

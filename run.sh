@@ -1,9 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
-IMAGE_NAME="python-env"
-
-echo "Building Docker image: $IMAGE_NAME..."
-docker build -t $IMAGE_NAME .
-
-echo "Running Docker container from image: $IMAGE_NAME..."
-docker run -it --rm -v $(pwd):/app $IMAGE_NAME
+docker build -t python-app .
+docker run -it python-app bash
