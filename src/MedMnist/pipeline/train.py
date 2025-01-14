@@ -33,4 +33,4 @@ def objective(trial, x_train, y_train, x_test, y_test, num_classes):
 def optimize_hyperparameters(x_train, y_train, x_test, y_test, num_classes):
     study = optuna.create_study(direction="maximize")
     study.optimize(lambda trial: objective(trial, x_train, y_train, x_test, y_test, num_classes), n_trials=20)
-    return study.best_paramslo
+    return study.best_params

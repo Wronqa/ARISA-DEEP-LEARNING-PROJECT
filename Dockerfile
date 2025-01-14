@@ -1,5 +1,5 @@
 # Bazowy obraz TensorFlow
-FROM tensorflow/tensorflow
+FROM tensorflow/tensorflow:latest-gpu
 
 # Ustawienie katalogu roboczego
 WORKDIR /app
