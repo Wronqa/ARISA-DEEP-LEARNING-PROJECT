@@ -5,3 +5,12 @@ plots
 .neptune
 .idea
 .DS_Store
+*/__pycache__/*
+
+src/MedMnist/config/__pycache__/
+src/MedMnist/conponents/__pycache__/
+src/MedMnist/entity/__pycache__/
+src/MedMnist/entity/__pycache__/
+src/MedMnist/logging/__pycache__/
+src/MedMnist/pipeline/__pycache__/
+src/MedMnist/conponents/__pycache__/
