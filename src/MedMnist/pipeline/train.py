@@ -107,6 +107,7 @@ def objective(trial, x_train, y_train, x_test, y_test, num_classes, model_versio
         "learning_rate": trial.suggest_float("learning_rate", *optymized_params["learning_rate_range"], log=True),
         "batch_size": trial.suggest_categorical("batch_size", optymized_params["batch_size_options"]),
         "dropout_rate": trial.suggest_float("dropout_rate", *optymized_params["dropout_rate_range"]),
+        "filters_0": trial.suggest_categorical("filters_0", optymized_params["filters_0_options"]),
         "filters_1": trial.suggest_categorical("filters_1", optymized_params["filters_1_options"]),
         "filters_2": trial.suggest_categorical("filters_2", optymized_params["filters_2_options"]),
         "filters_3": trial.suggest_categorical("filters_3", optymized_params["filters_3_options"]),
@@ -177,6 +178,50 @@ def objective(trial, x_train, y_train, x_test, y_test, num_classes, model_versio
     return val_accuracy
 
 
+def optimize_one(x_train, y_train, x_test, y_test, num_classes, run, model):
+    """
+    - x_train, y_train, x_test, y_test, num_classes: dane i info o klasach
+    - run: obiekt Neptune (init_run), do którego chcemy logować
+    - model: klucz modelu, dla którego chcemy optymalizować hiperparametry
+    """
+    study = optuna.create_study(direction="maximize")
+
+    # Nasz wlasny callback do logowania param/wartości w Neptune
+    neptune_optuna_callback = NeptuneOptunaCallback(
+        run=run,
+        base_namespace="optuna",
+        model_key=model
+    )
+
+    # Wywołujemy study.optimize, przekazując objective + callback
+    study.optimize(
+        lambda trial: objective(
+            trial=trial,
+            x_train=x_train,
+            y_train=y_train,
+            x_test=x_test,
+            y_test=y_test,
+            num_classes=num_classes,
+            model_version=model,
+            run=run
+        ),
+        n_trials=20,
+        callbacks=[neptune_optuna_callback]
+    )
+
+    # Zbieramy najlepsze parametry
+    best_results = study.best_params
+    print(f"Best parameters for {model}: {study.best_params}")
+
+    # Możesz dodatkowo logować końcowe rezultaty do Neptune
+    run[f"optuna/{model}/best_value"] = study.best_value
+    run[f"optuna/{model}/best_params"] = study.best_params
+
+    return best_results
+    
+    
+
+
 # -----------------------------------------------------------------------------
 # GŁÓWNA FUNKCJA: OPTYMALIZACJA HIPERPARAMETRÓW DLA RÓŻNYCH MODELI
 # -----------------------------------------------------------------------------
@@ -191,37 +236,14 @@ def optimize_hyperparameters(x_train, y_train, x_test, y_test, num_classes, run)
     for key in model_keys:
         print(f"Optimizing hyperparameters for model version: {key}")
 
-        study = optuna.create_study(direction="maximize")
-
-        # Nasz wlasny callback do logowania param/wartości w Neptune
-        neptune_optuna_callback = NeptuneOptunaCallback(
+        best_results[key] = optimize_one(
+            x_train=x_train,
+            y_train=y_train,
+            x_test=x_test,
+            y_test=y_test,
+            num_classes=num_classes,
             run=run,
-            base_namespace="optuna",
-            model_key=key
+            model=key
         )
-
-        # Wywołujemy study.optimize, przekazując objective + callback
-        study.optimize(
-            lambda trial: objective(
-                trial=trial,
-                x_train=x_train,
-                y_train=y_train,
-                x_test=x_test,
-                y_test=y_test,
-                num_classes=num_classes,
-                model_version=key,
-                run=run
-            ),
-            n_trials=20,
-            callbacks=[neptune_optuna_callback]
-        )
-
-        # Zbieramy najlepsze parametry
-        best_results[key] = study.best_params
-        print(f"Best parameters for {key}: {study.best_params}")
-
-        # Możesz dodatkowo logować końcowe rezultaty do Neptune
-        run[f"optuna/{key}/best_value"] = study.best_value
-        run[f"optuna/{key}/best_params"] = study.best_params
 
     return best_results

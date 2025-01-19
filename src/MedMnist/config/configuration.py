@@ -2,6 +2,7 @@ optymized_params = {
     "learning_rate_range": (1e-6, 1e-1),  # Rozszerzony zakres do testowania ekstremalnych wartości
     "batch_size_options": [64, 128, 256, 512, 1024],  # Dodano więcej opcji batch size
     "dropout_rate_range": (0.0, 0.7),  # Poszerzony zakres, w tym brak dropout
+    "filters_0_options": [16, 32, 64],  # Dodano mniejsze wartości dla eksperymentów z prostszymi modelami
     "filters_1_options": [8, 16, 32, 64],  # Dodano mniejsze wartości dla eksperymentów z prostszymi modelami
     "filters_2_options": [32, 64, 128, 256, 512],  # Dodano większe wartości dla bardziej złożonych modeli
     "filters_3_options": [128, 256, 512],  # Dodano dla modeli z trzecią warstwą Conv2D

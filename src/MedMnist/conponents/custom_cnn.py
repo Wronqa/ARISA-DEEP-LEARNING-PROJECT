@@ -87,6 +87,33 @@ def create_model_v5(input_shape, num_classes, params):
     model.add(layers.Dense(num_classes, activation='softmax'))
     return model
 
+def create_model_v6(input_shape, num_classes, params):
+    model = models.Sequential()
+    
+    # Pierwsza warstwa konwolucyjna 5x5
+    model.add(layers.Conv2D(params["filters_0"], (5, 5), activation='relu', input_shape=input_shape, padding='same'))
+    model.add(layers.MaxPooling2D((2, 2)))
+    
+    # Druga warstwa konwolucyjna 3x3
+    model.add(layers.Conv2D(params["filters_1"], (3, 3), activation='relu', padding='same'))
+    model.add(layers.MaxPooling2D((2, 2)))
+    
+    # Trzecia warstwa konwolucyjna 3x3
+    model.add(layers.Conv2D(params["filters_2"], (3, 3), activation='relu', padding='same'))
+    model.add(layers.MaxPooling2D((2, 2)))
+    
+    # Czwarta warstwa konwolucyjna 3x3 (lub 1x1 dla eksperymentów)
+    model.add(layers.Conv2D(params["filters_3"], (3, 3), activation='relu', padding='same'))
+    
+    # Spłaszczenie wyników
+    model.add(layers.Flatten())
+    
+    # Warstwa gęsta
+    model.add(layers.Dense(params["dense_units"], activation='relu'))
+    model.add(layers.Dropout(params["dropout_rate"]))
+    model.add(layers.Dense(num_classes, activation='softmax'))
+    
+    return model
 
 experiment_models = {
     "model_v1": create_model_v1,
@@ -94,4 +121,5 @@ experiment_models = {
     "model_v3": create_model_v3,
     "model_v4": create_model_v4,
     "model_v5": create_model_v5,
+    "model_v6": create_model_v6,
 }

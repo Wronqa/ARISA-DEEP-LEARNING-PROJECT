@@ -14,7 +14,7 @@ from tensorflow.keras.models import load_model
 import neptune
 
 from src.MedMnist.entity.dataset import load_data
-from src.MedMnist.pipeline.train import optimize_hyperparameters
+from src.MedMnist.pipeline.train import optimize_hyperparameters, optimize_one
 from src.MedMnist.conponents.custom_cnn import experiment_models
 from src.MedMnist.logging.logger import setup_logger
 from dotenv import load_dotenv
@@ -140,7 +140,7 @@ def train_choosen_model(experiment_name, experiment_dir, choosen_model, run):
     x_train, y_train, x_test, y_test, num_classes = load_data()
 
     logger.info("Optimizing hyperparameters for the chosen model...")
-    best_params_all_models = optimize_hyperparameters(x_train, y_train, x_test, y_test, num_classes, run)
+    best_params_all_models = optimize_one(x_train, y_train, x_test, y_test, num_classes, run, choosen_model)
     logger.info(f"Training chosen model version: {choosen_model}...")
 
     model_ns = f"model_{choosen_model}"
