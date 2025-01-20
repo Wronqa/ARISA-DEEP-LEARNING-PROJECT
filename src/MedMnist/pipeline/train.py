@@ -100,29 +100,33 @@ class NeptuneOptunaCallback:
 # -----------------------------------------------------------------------------
 def objective(trial, x_train, y_train, x_test, y_test, num_classes, model_version, run):
     """
-    Funkcja celu Optuny. Loguje do Neptune przebieg każdej epoki 
-    (NeptuneKerasEpochLogger) oraz finalną wartość (maksymalną val_accuracy).
+    Funkcja celu Optuny. Uwzględnia regularizację L2 oraz loguje do Neptune 
+    przebieg każdej epoki (NeptuneKerasEpochLogger) oraz finalną wartość 
+    (maksymalną val_accuracy).
     """
     params = {
         "learning_rate": trial.suggest_float("learning_rate", *optymized_params["learning_rate_range"], log=True),
         "batch_size": trial.suggest_categorical("batch_size", optymized_params["batch_size_options"]),
         "dropout_rate": trial.suggest_float("dropout_rate", *optymized_params["dropout_rate_range"]),
+        "dropout_dense": trial.suggest_float("dropout_dense", *optymized_params["dropout_dense"]),
         "filters_0": trial.suggest_categorical("filters_0", optymized_params["filters_0_options"]),
         "filters_1": trial.suggest_categorical("filters_1", optymized_params["filters_1_options"]),
         "filters_2": trial.suggest_categorical("filters_2", optymized_params["filters_2_options"]),
         "filters_3": trial.suggest_categorical("filters_3", optymized_params["filters_3_options"]),
+        "filters_4": trial.suggest_categorical("filters_4", optymized_params["filters_4_options"]),
         "dense_units": trial.suggest_categorical("dense_units", optymized_params["dense_units_options"]),
         "activation_function": trial.suggest_categorical("activation_function", optymized_params["activation_functions"]),
         "optimizer": trial.suggest_categorical("optimizer", optymized_params["optimizer_options"]),
         "epochs": trial.suggest_categorical("epochs", optymized_params["epochs_range"]),
         "early_stopping_patience": trial.suggest_int("early_stopping_patience", *optymized_params["early_stopping_patience"]),
+        "l2_reg": trial.suggest_float("l2_reg", *optymized_params["l2_reg_range"], log=True),  # Dodanie L2 regularization
     }
 
-    # Tworzymy model
+    # Tworzenie modelu
     model_function = experiment_models[f"{model_version}"]
     model = model_function((28, 28, 1), num_classes, params)
 
-    # Optymalizator
+    # Wybór optymalizatora
     optimizer_dict = {
         "adam": tf.keras.optimizers.Adam,
         "sgd": tf.keras.optimizers.SGD,
@@ -150,7 +154,7 @@ def objective(trial, x_train, y_train, x_test, y_test, num_classes, model_versio
         trial_id=trial.number
     )
 
-    # Augmentacja
+    # Augmentacja danych
     datagen = ImageDataGenerator(
         rotation_range=40,
         width_shift_range=0.2,
@@ -162,7 +166,7 @@ def objective(trial, x_train, y_train, x_test, y_test, num_classes, model_versio
     )
     datagen.fit(x_train)
 
-    # Trenowanie
+    # Trenowanie modelu
     history = model.fit(
         datagen.flow(x_train, y_train, batch_size=params["batch_size"]),
         validation_data=(x_test, y_test),
@@ -171,9 +175,10 @@ def objective(trial, x_train, y_train, x_test, y_test, num_classes, model_versio
         callbacks=[early_stopping, neptune_keras_cb]
     )
 
-    # Maks. dokładność walidacyjna
+    # Maksymalna dokładność walidacyjna
     val_accuracy = max(history.history['val_accuracy'])
 
+    # Czyszczenie sesji Keras
     K.clear_session()
     return val_accuracy
 
