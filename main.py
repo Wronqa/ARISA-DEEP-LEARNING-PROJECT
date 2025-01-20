@@ -140,11 +140,10 @@ def train_choosen_model(experiment_name, experiment_dir, choosen_model, run):
     x_train, y_train, x_test, y_test, num_classes = load_data()
 
     logger.info("Optimizing hyperparameters for the chosen model...")
-    best_params_all_models = optimize_one(x_train, y_train, x_test, y_test, num_classes, run, choosen_model)
+    best_params = optimize_one(x_train, y_train, x_test, y_test, num_classes, run, choosen_model)
     logger.info(f"Training chosen model version: {choosen_model}...")
 
     model_ns = f"model_{choosen_model}"
-    best_params = best_params_all_models[choosen_model]
     run[f"{model_ns}/hyperparameters"] = best_params
 
     create_model = experiment_models[choosen_model]
