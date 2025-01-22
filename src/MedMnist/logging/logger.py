@@ -22,3 +22,5 @@ def setup_logger(log_file="app.log"):
 
     return logger
 
+
+logger = setup_logger()
