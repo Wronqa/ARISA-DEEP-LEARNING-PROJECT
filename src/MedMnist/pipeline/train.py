@@ -3,30 +3,18 @@ from tensorflow.keras import backend as K
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import tensorflow as tf
 
-# Nowe API Neptune (bez 'contrib')
-# Zakładam, że w innym miejscu masz: run = neptune.init_run(...)
-# i przekazujesz to 'run' jako argument.
-# import neptune
+
 
 from src.MedMnist.config.configuration import optymized_params
 from src.MedMnist.conponents.custom_cnn import experiment_models
 
 
-# -----------------------------------------------------------------------------
-# CALLBACK 1: Keras -> Neptune epoka-po-epoce
-# -----------------------------------------------------------------------------
+
 class NeptuneKerasEpochLogger(tf.keras.callbacks.Callback):
-    """
-    Callback logujący do Neptune train/val loss i accuracy 
-    na koniec każdej epoki.
-    """
+    
 
     def __init__(self, run, model_name, trial_id):
-        """
-        :param run: obiekt Neptune Run (np. przekazany z maina)
-        :param model_name: nazwa modelu lub wersja (np. 'modelA')
-        :param trial_id: numer próby w Optunie (trial.number)
-        """
+        
         super().__init__()
         self.run = run
         self.model_name = model_name
@@ -50,17 +38,9 @@ class NeptuneKerasEpochLogger(tf.keras.callbacks.Callback):
             self.run[f"{base_ns}/val/accuracy"].append(logs["val_accuracy"])
 
 
-# -----------------------------------------------------------------------------
-# CALLBACK 2: Optuna -> Neptune (logowanie param/ value)
-# -----------------------------------------------------------------------------
+
 class NeptuneOptunaCallback:
-    """
-    Prosty callback do integracji Optuny z nowym Neptune (API z init_run()).
-    Po każdej próbie loguje do run['optuna/<model_key>/trial_<trial_number>/...']:
-      - parametry próby (params/...)
-      - wartość funkcji celu (value)
-    Dodatkowo, jeśli bieżąca próba jest najlepsza, aktualizuje best_value i best_trial_number.
-    """
+    
 
     def __init__(self, run, base_namespace="optuna", model_key=None):
         """
@@ -70,10 +50,10 @@ class NeptuneOptunaCallback:
         """
         self.run = run
         self.base_namespace = base_namespace
-        self.model_key = model_key  # np. "modelA" / "modelB"
+        self.model_key = model_key 
 
     def __call__(self, study: optuna.study.Study, trial: optuna.trial.FrozenTrial):
-        # Zbuduj ścieżkę np. "optuna/modelA/trial_0"
+
         if self.model_key is not None:
             trial_ns = f"{self.base_namespace}/{self.model_key}/trial_{trial.number}"
             best_ns = f"{self.base_namespace}/{self.model_key}"
@@ -81,29 +61,23 @@ class NeptuneOptunaCallback:
             trial_ns = f"{self.base_namespace}/trial_{trial.number}"
             best_ns = f"{self.base_namespace}"
 
-        # Loguj parametry próby
+
         for param_name, param_value in trial.params.items():
             self.run[f"{trial_ns}/params/{param_name}"] = param_value
 
-        # Loguj wartość funkcji celu
+
         if trial.value is not None:
             self.run[f"{trial_ns}/value"] = trial.value
 
-        # Jeśli ta próba jest najlepsza:
+
         if study.best_trial == trial:
             self.run[f"{best_ns}/best_value"] = study.best_value
             self.run[f"{best_ns}/best_trial_number"] = trial.number
 
 
-# -----------------------------------------------------------------------------
-# FUNKCJA CELU (objective) - trenowanie modelu, zwracanie maks. val_accuracy
-# -----------------------------------------------------------------------------
+
 def objective(trial, x_train, y_train, x_test, y_test, num_classes, model_version, run):
-    """
-    Funkcja celu Optuny. Uwzględnia regularizację L2 oraz loguje do Neptune 
-    przebieg każdej epoki (NeptuneKerasEpochLogger) oraz finalną wartość 
-    (maksymalną val_accuracy).
-    """
+    
     params = {
         "learning_rate": trial.suggest_float("learning_rate", *optymized_params["learning_rate_range"], log=True),
         "batch_size": trial.suggest_categorical("batch_size", optymized_params["batch_size_options"]),
@@ -119,14 +93,13 @@ def objective(trial, x_train, y_train, x_test, y_test, num_classes, model_versio
         "optimizer": trial.suggest_categorical("optimizer", optymized_params["optimizer_options"]),
         "epochs": trial.suggest_categorical("epochs", optymized_params["epochs_range"]),
         "early_stopping_patience": trial.suggest_int("early_stopping_patience", *optymized_params["early_stopping_patience"]),
-        "l2_reg": trial.suggest_float("l2_reg", *optymized_params["l2_reg_range"], log=True),  # Dodanie L2 regularization
+
     }
 
-    # Tworzenie modelu
     model_function = experiment_models[f"{model_version}"]
     model = model_function((28, 28, 1), num_classes, params)
 
-    # Wybór optymalizatora
+
     optimizer_dict = {
         "adam": tf.keras.optimizers.Adam,
         "sgd": tf.keras.optimizers.SGD,
@@ -141,7 +114,7 @@ def objective(trial, x_train, y_train, x_test, y_test, num_classes, model_versio
         metrics=['accuracy']
     )
 
-    # Callbacki
+
     early_stopping = tf.keras.callbacks.EarlyStopping(
         monitor='val_accuracy',
         patience=params["early_stopping_patience"],
@@ -154,7 +127,7 @@ def objective(trial, x_train, y_train, x_test, y_test, num_classes, model_versio
         trial_id=trial.number
     )
 
-    # Augmentacja danych
+
     datagen = ImageDataGenerator(
         rotation_range=40,
         width_shift_range=0.2,
@@ -166,7 +139,7 @@ def objective(trial, x_train, y_train, x_test, y_test, num_classes, model_versio
     )
     datagen.fit(x_train)
 
-    # Trenowanie modelu
+
     history = model.fit(
         datagen.flow(x_train, y_train, batch_size=params["batch_size"]),
         validation_data=(x_test, y_test),
@@ -175,30 +148,26 @@ def objective(trial, x_train, y_train, x_test, y_test, num_classes, model_versio
         callbacks=[early_stopping, neptune_keras_cb]
     )
 
-    # Maksymalna dokładność walidacyjna
+
     val_accuracy = max(history.history['val_accuracy'])
 
-    # Czyszczenie sesji Keras
+
     K.clear_session()
     return val_accuracy
 
 
 def optimize_one(x_train, y_train, x_test, y_test, num_classes, run, model):
-    """
-    - x_train, y_train, x_test, y_test, num_classes: dane i info o klasach
-    - run: obiekt Neptune (init_run), do którego chcemy logować
-    - model: klucz modelu, dla którego chcemy optymalizować hiperparametry
-    """
+  
     study = optuna.create_study(direction="maximize")
 
-    # Nasz wlasny callback do logowania param/wartości w Neptune
+  
     neptune_optuna_callback = NeptuneOptunaCallback(
         run=run,
         base_namespace="optuna",
         model_key=model
     )
 
-    # Wywołujemy study.optimize, przekazując objective + callback
+  
     study.optimize(
         lambda trial: objective(
             trial=trial,
@@ -214,11 +183,11 @@ def optimize_one(x_train, y_train, x_test, y_test, num_classes, run, model):
         callbacks=[neptune_optuna_callback]
     )
 
-    # Zbieramy najlepsze parametry
+  
     best_results = study.best_params
     print(f"Best parameters for {model}: {study.best_params}")
 
-    # Możesz dodatkowo logować końcowe rezultaty do Neptune
+  
     run[f"optuna/{model}/best_value"] = study.best_value
     run[f"optuna/{model}/best_params"] = study.best_params
 
@@ -227,9 +196,7 @@ def optimize_one(x_train, y_train, x_test, y_test, num_classes, run, model):
     
 
 
-# -----------------------------------------------------------------------------
-# GŁÓWNA FUNKCJA: OPTYMALIZACJA HIPERPARAMETRÓW DLA RÓŻNYCH MODELI
-# -----------------------------------------------------------------------------
+
 def optimize_hyperparameters(x_train, y_train, x_test, y_test, num_classes, run):
     """
     - x_train, y_train, x_test, y_test, num_classes: dane i info o klasach
